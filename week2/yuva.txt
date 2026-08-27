@@ -1,0 +1,101 @@
+ Code Documentation
+The analysis is implemented in Python using pandas, numpy, and matplotlib/seaborn for visualization.
+
+3.1. Dependencies
+python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+3.2. Load and Clean Functions
+The primary cleaning steps are encapsulated in functions for reusability.
+
+python
+def load_and_clean_data(filepath):
+    """
+    Loads the customer logistics CSV, performs initial cleaning, and adds derived columns.
+
+    Args:
+        filepath (str): Path to the CSV file.
+
+    Returns:
+        pd.DataFrame: Cleaned DataFrame with additional features.
+    """
+    # 1. Load Data
+    df = pd.read_csv(filepath)
+
+    # 2. Convert Dates
+    date_cols = ['acquisition_date', 'order_date', 'payment_date']
+    for col in date_cols:
+        df[col] = pd.to_datetime(df[col])
+
+    # 3. Check for missing/duplicates (logging/assertions can be added)
+    assert df.isnull().sum().sum() == 0, "Missing values found!"
+    assert df.duplicated().sum() == 0, "Duplicate rows found!"
+
+    # 4. Create Derived Features
+    df['acquisition_to_order_days'] = (df['order_date'] - df['acquisition_date']).dt.days
+    df['order_to_payment_days'] = (df['payment_date'] - df['order_date']).dt.days
+    df['net_value_usd'] = df['order_value_usd'] - df['acquisition_cost_usd']
+
+    return df
+
+ Analysis Examples
+Here are examples of analytical queries that could be run on the cleaned data.
+
+Example 1: Supplier Performance Summary
+
+python
+def supplier_performance_summary(df):
+    """
+    Calculates key metrics by supplier: total order value, average lead time,
+    average satisfaction score, and average support tickets.
+    """
+    summary = df.groupby('supplier_id').agg({
+        'order_value_usd': ['sum', 'mean'],
+        'lead_time_days': 'mean',
+        'satisfaction_score': 'mean',
+        'support_tickets': 'mean'
+    })
+    return summary
+
+# Usage
+supplier_summary = supplier_performance_summary(df)
+print(supplier_summary)
+Example 2: Monthly Acquisition Trends
+
+python
+def acquisition_trends(df):
+    """
+    Analyzes monthly trends in acquisition cost and order value.
+    """
+    df['acquisition_month'] = df['acquisition_date'].dt.to_period('M')
+    monthly_data = df.groupby('acquisition_month').agg({
+        'acquisition_cost_usd': 'mean',
+        'order_value_usd': 'mean',
+        'customer_id': 'count'  # Number of acquisitions per month
+    })
+    return monthly_data
+
+# Usage
+monthly_trends = acquisition_trends(df)
+print(monthly_trends)
+3.4. Visualization
+Plotting is essential for understanding the data.
+
+python
+# Set style
+sns.set_style("whitegrid")
+
+# Distribution of order values by region
+plt.figure(figsize=(12, 6))
+sns.boxplot(data=df, x='market_segment', y='order_value_usd')
+plt.title('Order Value Distribution by Market Segment')
+plt.xticks(rotation=45)
+plt.show()
+
+# Scatter plot of Acquisition Cost vs. Order Value
+plt.figure(figsize=(8, 6))
+sns.scatterplot(data=df, x='acquisition_cost_usd', y='order_value_usd', hue='market_segment')
+plt.title('Acquisition Cost vs. First Order Value')
+plt.show()
